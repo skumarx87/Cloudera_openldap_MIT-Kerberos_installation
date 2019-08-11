@@ -156,8 +156,8 @@ fi
 
 main
 #install_git
-#kerberos_installation
+kerberos_installation
 create_root_ca_pair
 creating_ldap_ssl_pair_pem
-#openldap_installation
+openldap_installation
 enable_ldap_tls
