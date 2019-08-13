@@ -15,7 +15,9 @@ ldap_olcRootDN="cn=admin,dc=${ldap_root_dc},dc=com"
 
 root_ca_password="support123"
 pem_key_password="support123"
+KRB_DOMAIN_NAME="TANU.COM"
 kerberos_server_hostname="onelogin.tanu.com"
+ldap_server_host="onelogin.tanu.com"
 
 }
 
@@ -38,15 +40,91 @@ then
 	exit -1
 fi
 }
+banner_msg() {
+	msg=$1
+	echo "---------------------------------------------------"
+	echo "${msg}						 "
+	echo "---------------------------------------------------"
+}
 
-kerberos_installation() {
+kerberos_installation_with_ldap_db() {
+
+banner_msg "INFO: kerberos_installation_with_ldap_db function"
 
 #git clone https://github.com/skumarx87/MIT-kerberos-installation.git
 #chmod -R 755 MIT-kerberos-installation
 #cd MIT-kerberos-installation
 #sh -x install_mit_kerberos.sh server
+DOMAIN_UPPER=$(echo $KRB_DOMAIN_NAME|  tr '[:lower:]' '[:upper:]')
+DOMAIN_LOWER=$(echo $KRB_DOMAIN_NAME|  tr '[:upper:]' '[:lower:]')
 
 yum -y install krb5-server krb5-libs
+
+banner_msg "INFO: creating krb5.conf file"
+
+cat > /etc/krb5.conf <<- "EOF"
+[libdefaults]
+    default_realm = DOMAIN.COM
+    dns_lookup_realm = false
+    dns_lookup_kdc = false
+    ticket_lifetime = 24h
+    forwardable = true
+    udp_preference_limit = 1000000
+    default_tkt_enctypes = des-cbc-md5 des-cbc-crc des3-cbc-sha1
+    default_tgs_enctypes = des-cbc-md5 des-cbc-crc des3-cbc-sha1
+    permitted_enctypes = des-cbc-md5 des-cbc-crc des3-cbc-sha1
+
+[realms]
+    DOMAIN.COM = {
+        kdc = ldap_server_host:88
+        admin_server = ldap_server_host:749
+        default_domain = domain.com
+        database_module = openldap_ldapconf
+    }
+
+[domain_realm]
+    .domain.com = DOMAIN.COM
+     domain.com = DOMAIN.COM
+
+[dbdefaults]
+        ldap_kerberos_container_dn = cn=krbContainer,ldap_olcSuffix
+
+[dbmodules]
+        openldap_ldapconf = {
+                db_library = kldap
+                ldap_kdc_dn = "ldap_olcRootDN"
+
+                # this object needs to have read rights on
+                # the realm container, principal container and realm sub-trees
+                ldap_kadmind_dn = "ldap_olcRootDN"
+
+                # this object needs to have read and write rights on
+                # the realm container, principal container and realm sub-trees
+                ldap_service_password_file = /etc/krb5.d/service.keyfile
+                ldap_servers = ldaps://ldap_server_host
+                ldap_conns_per_server = 5
+        }
+[logging]
+    kdc = FILE:/var/log/krb5kdc.log
+    admin_server = FILE:/var/log/kadmin.log
+    default = FILE:/var/log/krb5lib.log
+
+EOF
+ sed -i "s/DOMAIN.COM/${DOMAIN_UPPER}/"g /etc/krb5.conf
+ sed -i "s/domain.com/${DOMAIN_LOWER}/"g /etc/krb5.conf
+ sed -i "s/ldap_server_host/${ldap_server_host}/"g /etc/krb5.conf
+ sed -i "s/ldap_server_host/${ldap_server_host}/"g /etc/krb5.conf
+ sed -i "s/ldap_olcRootDN/${ldap_olcRootDN}/"g /etc/krb5.conf
+ sed -i "s/ldap_olcRootDN/${ldap_olcRootDN}/"g /etc/krb5.conf
+ sed -i "s/ldap_olcSuffix/${ldap_olcSuffix}/"g /etc/krb5.conf
+
+kdb5_ldap_util -D ${ldap_olcRootDN}  -H ldaps://${ldap_server_host} create -subtrees ${ldap_olcSuffix} -sscope SUB -r ${KRB_DOMAIN_NAME} -w ${openldap_secreat} -P ${KDC_KEY_PASSWD}
+[ -d /etc/krb5.d/ ] || mkdir -p /etc/krb5.d/
+
+banner_msg "INFO: type this password to create ldap stash password : ${openldap_secreat}"
+
+kdb5_ldap_util -D ${ldap_olcRootDN} -w ${openldap_secreat} stashsrvpw -f /etc/krb5.d/service.keyfile ${ldap_olcRootDN}
+check_file_exists "/etc/krb5.d/service.keyfile" "ERROR: ldap stash file creation failed in /etc/krb5.d/service.keyfile location"
 
 echo -e "\n Starting KDC services"
 service krb5kdc start
@@ -60,6 +138,8 @@ chkconfig kadmin on
 
 create_root_ca_pair(){
 
+banner_msg "INFO: Running create_root_ca_pair function"
+
 ### Creating Root key and Certificate ###
 mkdir -p ca_root_key
 openssl genrsa -des3 -out ca_root_key/MyRootCA.key -passout pass:${root_ca_password} 2048
@@ -72,6 +152,8 @@ cp -rv ca_root_key/MyRootCA.pem /etc/ssl/certs/${kerberos_server_hostname}/
 }
 
 creating_ldap_ssl_pair_pem(){
+
+banner_msg "INFO: Running creating_ldap_ssl_pair_pem function"
 
 ### Creating SSL pair for Kerberos and Ldap server with CA signed (Pem format) ##
 mkdir ${kerberos_server_hostname}
@@ -87,6 +169,7 @@ cp -rv ${kerberos_server_hostname}/${kerberos_server_hostname}.* /etc/ssl/certs/
 }
 
 openldap_installation() {
+banner_msg "INFO: Running openldap_installation function"
 yum -y install openldap-clients openldap-servers
 systemctl start slapd
 systemctl enable slapd
@@ -180,7 +263,7 @@ systemctl restart rsyslog.service
 
 enable_ldap_tls(){
 
-
+banner_msg "INFO: Running enable_ldap_tls function"
 cat > /tmp/addcerts.ldif <<- "EOF"
 dn: cn=config
 changetype: modify
@@ -218,6 +301,7 @@ fi
 
 enable_kerberos_ldap_backend(){
 
+banner_msg "INFO: Running enable_kerberos_ldap_backend function"
 yum -y install krb5-server-ldap
 
 cp -v /usr/share/doc/krb5-server-ldap-1.15.1/kerberos.schema /etc/openldap/schema
@@ -258,25 +342,14 @@ EOF
 
 ldapmodify -Y EXTERNAL  -H ldapi:/// -f /tmp/kerberos_index.ldif
 
-kdb5_ldap_util -D ${ldap_olcRootDN}  -H ldaps://${kerberos_server_hostname} create -subtrees ${ldap_olcSuffix} -sscope SUB -r ${KRB_DOMAIN_NAME} -w ${openldap_secreat} -P ${KDC_KEY_PASSWD}
-[ -d /etc/krb5.d/ ] || mkdir -p /etc/krb5.d/
-
-coproc kdb5_ldap_util -D ${ldap_olcRootDN} -w ${openldap_secreat} stashsrvpw -f /etc/krb5.d/service.keyfile ${ldap_olcRootDN}
-#echo ${openldap_secreat} >&${COPROC[1]}
-echo ${openldap_secreat} >&${COPROC[1]}
-echo ${openldap_secreat} >&${COPROC[1]}
-ls -lrt /etc/krb5.d/service.keyfile
-check_file_exists "/etc/krb5.d/service.keyfile" "ERROR: ldap stash file creation failed in /etc/krb5.d/service.keyfile location"
-
-
 }
 
 main
 #install_git
-#kerberos_installation
 create_root_ca_pair
 creating_ldap_ssl_pair_pem
 openldap_installation
 enable_ldap_tls
+kerberos_installation_with_ldap_db
 enable_kerberos_ldap_backend
 
