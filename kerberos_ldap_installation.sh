@@ -15,7 +15,7 @@ ldap_olcRootDN="cn=admin,dc=${ldap_root_dc},dc=com"
 
 root_ca_password="support123"
 pem_key_password="support123"
-kerberos_server_hostname="idm.tanu.com"
+kerberos_server_hostname="onelogin.tanu.com"
 
 }
 
@@ -33,7 +33,7 @@ Error_msg=$2
 if [ ! -f ${file_path} ]
 then
 	echo "---------------------------------------------------"
-	echo "$2
+	echo "$2						 "
 	echo "---------------------------------------------------"
 	exit -1
 fi
@@ -48,23 +48,13 @@ kerberos_installation() {
 
 yum -y install krb5-server krb5-libs
 
-kdb5_ldap_util -D ${ldap_olcRootDN}  -H ldaps://${kerberos_server_hostname} create -subtrees ${ldap_olcSuffix} -sscope SUB -r ${KRB_DOMAIN_NAME} -P ${KDC_KEY_PASSWD}
-[ -d /etc/krb5.d/ ] || mkdir -p /etc/krb5.d/ 
-
-coproc kdb5_ldap_util -D ${ldap_olcRootDN} stashsrvpw -f /etc/krb5.d/service.keyfile ${ldap_olcRootDN} 
-echo ${openldap_secreat} >&${COPROC[1]}
-echo ${openldap_secreat} >&${COPROC[1]}
-echo ${openldap_secreat} >&${COPROC[1]}
-
-check_file_exists "/etc/krb5.d/service.keyfile" "ERROR: ldap stash file creation failed in /etc/krb5.d/service.keyfile location"
- 
 echo -e "\n Starting KDC services"
 service krb5kdc start
 service kadmin start
 chkconfig krb5kdc on
 chkconfig kadmin on
-echo -e "\n Creating admin principal"
-kadmin.local -q "addprinc -pw root123 root/admin"
+#echo -e "\n Creating admin principal"
+#kadmin.local -q "addprinc -pw root123 root/admin"
 
 }
 
@@ -207,7 +197,7 @@ EOF
 sed -i "s/kerberos_server_hostname/${kerberos_server_hostname}/g" /tmp/addcerts.ldif
 ldapmodify -Y EXTERNAL -H ldapi:/// -f /tmp/addcerts.ldif
 
-grep "^SLAPD_URLS" /var/tmp/slapd |grep ldaps
+grep "^SLAPD_URLS" /etc/sysconfig/slapd |grep ldaps
 retn_val=$?
 if [ ${retn_val} != 0 ]
 then
@@ -218,7 +208,7 @@ fi
 
 grep "^TLS_CACERTDIR" /etc/openldap/ldap.conf
 retn_val=$?
-if [ ${retn_val} != 0 ]
+if [ ${retn_val} == 0 ]
 then
         sed -i "s/^TLS_CACERTDIR/#TLS_CACERTDIR=/" /etc/openldap/ldap.conf
         echo "TLS_CACERT  /etc/ssl/certs/${kerberos_server_hostname}/MyRootCA.pem">>/etc/openldap/ldap.conf
@@ -229,6 +219,7 @@ fi
 enable_kerberos_ldap_backend(){
 
 yum -y install krb5-server-ldap
+
 cp -v /usr/share/doc/krb5-server-ldap-1.15.1/kerberos.schema /etc/openldap/schema
 
 cat > /tmp/schema_convert.conf <<- "EOF"
@@ -267,15 +258,25 @@ EOF
 
 ldapmodify -Y EXTERNAL  -H ldapi:/// -f /tmp/kerberos_index.ldif
 
+kdb5_ldap_util -D ${ldap_olcRootDN}  -H ldaps://${kerberos_server_hostname} create -subtrees ${ldap_olcSuffix} -sscope SUB -r ${KRB_DOMAIN_NAME} -w ${openldap_secreat} -P ${KDC_KEY_PASSWD}
+[ -d /etc/krb5.d/ ] || mkdir -p /etc/krb5.d/
+
+coproc kdb5_ldap_util -D ${ldap_olcRootDN} -w ${openldap_secreat} stashsrvpw -f /etc/krb5.d/service.keyfile ${ldap_olcRootDN}
+#echo ${openldap_secreat} >&${COPROC[1]}
+echo ${openldap_secreat} >&${COPROC[1]}
+echo ${openldap_secreat} >&${COPROC[1]}
+ls -lrt /etc/krb5.d/service.keyfile
+check_file_exists "/etc/krb5.d/service.keyfile" "ERROR: ldap stash file creation failed in /etc/krb5.d/service.keyfile location"
+
 
 }
 
 main
 #install_git
 #kerberos_installation
-#create_root_ca_pair
-#creating_ldap_ssl_pair_pem
-#openldap_installation
-#enable_ldap_tls
+create_root_ca_pair
+creating_ldap_ssl_pair_pem
+openldap_installation
+enable_ldap_tls
 enable_kerberos_ldap_backend
 
