@@ -19,6 +19,10 @@ KRB_DOMAIN_NAME="TANU.COM"
 kerberos_server_hostname="idmlogin.tanu.com"
 ldap_server_host="idmlogin.tanu.com"
 
+ldap_user_profile_ou="ou=People,dc=${ldap_root_dc},dc=com"
+ldap_user_test="user1"
+ldap_user_test_passwd="test123"
+
 }
 
 install_git() {
@@ -48,18 +52,7 @@ banner_msg() {
 	echo "---------------------------------------------------"
 }
 
-kerberos_installation_with_ldap_db() {
-
-banner_msg "INFO: kerberos_installation_with_ldap_db function"
-
-#git clone https://github.com/skumarx87/MIT-kerberos-installation.git
-#chmod -R 755 MIT-kerberos-installation
-#cd MIT-kerberos-installation
-#sh -x install_mit_kerberos.sh server
-DOMAIN_UPPER=$(echo $KRB_DOMAIN_NAME|  tr '[:lower:]' '[:upper:]')
-DOMAIN_LOWER=$(echo $KRB_DOMAIN_NAME|  tr '[:upper:]' '[:lower:]')
-
-yum -y install krb5-server krb5-libs
+create_krb5_conf() {
 
 banner_msg "INFO: creating krb5.conf file"
 
@@ -78,7 +71,7 @@ cat > /etc/krb5.conf <<- "EOF"
 [realms]
     DOMAIN.COM = {
         kdc = ldap_server_host:88
-	admin_keytab = /var/kerberos/krb5kdc/kadmin.keytab
+        admin_keytab = /var/kerberos/krb5kdc/kadmin.keytab
         admin_server = ldap_server_host:749
         default_domain = domain.com
         database_module = openldap_ldapconf
@@ -95,7 +88,7 @@ cat > /etc/krb5.conf <<- "EOF"
         openldap_ldapconf = {
                 db_library = kldap
                 ldap_kdc_dn = "ldap_olcRootDN"
-	
+
                 # this object needs to have read rights on
                 # the realm container, principal container and realm sub-trees
                 ldap_kadmind_dn = "ldap_olcRootDN"
@@ -120,7 +113,24 @@ EOF
  sed -i "s/ldap_olcRootDN/${ldap_olcRootDN}/"g /etc/krb5.conf
  sed -i "s/ldap_olcSuffix/${ldap_olcSuffix}/"g /etc/krb5.conf
 
+
+}
+
+install_kerberos_server() {
+
+banner_msg "INFO: install_kerberos_server function"
+
+#git clone https://github.com/skumarx87/MIT-kerberos-installation.git
+#chmod -R 755 MIT-kerberos-installation
+#cd MIT-kerberos-installation
+#sh -x install_mit_kerberos.sh server
+DOMAIN_UPPER=$(echo $KRB_DOMAIN_NAME|  tr '[:lower:]' '[:upper:]')
+DOMAIN_LOWER=$(echo $KRB_DOMAIN_NAME|  tr '[:upper:]' '[:lower:]')
+
+yum -y install krb5-server krb5-libs
 yum -y install krb5-server-ldap
+
+create_krb5_conf
 
 }
 
@@ -292,7 +302,7 @@ enable_kerberos_ldap_backend(){
 banner_msg "INFO: Running enable_kerberos_ldap_backend function"
 yum -y install krb5-server-ldap
 
-cp -v /usr/share/doc/krb5-server-ldap-1.15.1/kerberos.schema /etc/openldap/schema
+cp -v /usr/share/doc/krb5-server-ldap-*/kerberos.schema /etc/openldap/schema
 
 cat > /tmp/schema_convert.conf <<- "EOF"
 
@@ -353,12 +363,53 @@ chkconfig kadmin on
 
 }
 
+settingup_ldapclient_authentication() {
+yum install -y openldap-clients nss-pam-ldapd
+authconfig --enableldap --enableldapauth --ldapserver=ldaps://${ldap_server_host} --ldapbasedn="${ldap_user_profile_ou}" --enablemkhomedir --update
+
+ldap_user_test_passwd_encty=$(slappasswd -s ${ldap_user_test_passwd})
+
+cat > /tmp/ldapusers.ldif <<- "EOF"
+dn: ldap_user_profile_ou 
+objectClass: organizationalUnit
+ou: People
+
+dn: uid=ldap_user_test,ldap_user_profile_ou
+objectClass: top
+objectClass: account
+objectClass: posixAccount
+objectClass: shadowAccount
+cn: ldap_user_test
+uid: ldap_user_test
+uidNumber: 9998
+gidNumber: 100
+homeDirectory: /home/ldap_user_test
+loginShell: /bin/bash
+gecos: Linuxuser [Admin (at) HostAdvice]
+userPassword: ldap_user_test_passwd_encty
+shadowLastChange: 17058
+shadowMin: 0
+shadowMax: 99999
+shadowWarning: 7
+EOF
+
+sed -i "s/ldap_user_profile_ou/${ldap_user_profile_ou}/g" /tmp/ldapusers.ldif
+sed -i "s/ldap_user_test/${ldap_user_test}/g" /tmp/ldapusers.ldif
+sed -i "s/ldap_user_test_passwd_encty/"${ldap_user_test_passwd_encty}"/g" /tmp/ldapusers.ldif
+ldapadd -h localhost -D "${ldap_olcRootDN}" -w ${openldap_secreat} -f /tmp/ldapusers.ldif 
+echo "TLS_CACERT  /etc/ssl/certs/${kerberos_server_hostname}/MyRootCA.pem" >>/etc/nslcd.conf
+echo "binddn ${ldap_olcRootDN}" >>/etc/nslcd.conf
+echo "bindpw ${openldap_secreat}" >>/etc/nslcd.conf
+systemctl restart nslcd.service
+}
+
 main
 #install_git
 create_root_ca_pair
 creating_ldap_ssl_pair_pem
 openldap_installation
 enable_ldap_tls
-kerberos_installation_with_ldap_db
+install_kerberos_server
 enable_kerberos_ldap_backend
 creating_kerberos_db
+settingup_ldapclient_authentication
