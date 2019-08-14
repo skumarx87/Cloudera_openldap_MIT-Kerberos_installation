@@ -119,13 +119,16 @@ EOF
  sed -i "s/ldap_olcRootDN/${ldap_olcRootDN}/"g /etc/krb5.conf
  sed -i "s/ldap_olcSuffix/${ldap_olcSuffix}/"g /etc/krb5.conf
 
-kdb5_ldap_util -D ${ldap_olcRootDN}  -H ldaps://${ldap_server_host} create -subtrees ${ldap_olcSuffix} -sscope SUB -r ${KRB_DOMAIN_NAME} -w ${openldap_secreat} -P ${KDC_KEY_PASSWD}
+#kdb5_ldap_util -D ${ldap_olcRootDN}  -H ldaps://${ldap_server_host} create -subtrees ${ldap_olcSuffix} -sscope SUB -r ${KRB_DOMAIN_NAME} -w ${openldap_secreat} -P ${KDC_KEY_PASSWD}
 [ -d /etc/krb5.d/ ] || mkdir -p /etc/krb5.d/
-
 banner_msg "INFO: type this password to create ldap stash password : ${openldap_secreat}"
-
 kdb5_ldap_util -D ${ldap_olcRootDN} -w ${openldap_secreat} stashsrvpw -f /etc/krb5.d/service.keyfile ${ldap_olcRootDN}
+banner_msg "INFO: Creating ${KRB_DOMAIN_NAME} KDC Database"
+kdb5_util create -s -r ${KRB_DOMAIN_NAME}  -P ${KDC_KEY_PASSWD}
 check_file_exists "/etc/krb5.d/service.keyfile" "ERROR: ldap stash file creation failed in /etc/krb5.d/service.keyfile location"
+banner_msg "INFO: Creating kadmin.keytab. otherwise admin service won't start"
+kadmin.local -q "ktadd -k /var/kerberos/krb5kdc/kadmin.keytab kadmin/onelogin.tanu.com kadmin/onelogin.tanu.com kadmin/changepw"
+check_file_exists "/var/kerberos/krb5kdc/kadmin.keytab" "ERROR: kadmin.keytab file creation failed in var/kerberos/krb5kdc/kadmin.keytab location"
 
 echo -e "\n Starting KDC services"
 service krb5kdc start
