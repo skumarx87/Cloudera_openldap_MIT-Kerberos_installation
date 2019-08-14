@@ -70,13 +70,14 @@ cat > /etc/krb5.conf <<- "EOF"
     ticket_lifetime = 24h
     forwardable = true
     udp_preference_limit = 1000000
-    default_tkt_enctypes = des-cbc-md5 des-cbc-crc des3-cbc-sha1
-    default_tgs_enctypes = des-cbc-md5 des-cbc-crc des3-cbc-sha1
-    permitted_enctypes = des-cbc-md5 des-cbc-crc des3-cbc-sha1
+    default_tkt_enctypes = aes256-cts des-cbc-md5 des-cbc-crc des3-cbc-sha1
+    default_tgs_enctypes = aes256-cts des-cbc-md5 des-cbc-crc des3-cbc-sha1
+    permitted_enctypes = aes256-cts des-cbc-md5 des-cbc-crc des3-cbc-sha1
 
 [realms]
     DOMAIN.COM = {
         kdc = ldap_server_host:88
+	admin_keytab = /var/kerberos/krb5kdc/kadmin.keytab
         admin_server = ldap_server_host:749
         default_domain = domain.com
         database_module = openldap_ldapconf
@@ -93,7 +94,7 @@ cat > /etc/krb5.conf <<- "EOF"
         openldap_ldapconf = {
                 db_library = kldap
                 ldap_kdc_dn = "ldap_olcRootDN"
-
+	
                 # this object needs to have read rights on
                 # the realm container, principal container and realm sub-trees
                 ldap_kadmind_dn = "ldap_olcRootDN"
