@@ -16,8 +16,8 @@ ldap_olcRootDN="cn=admin,dc=${ldap_root_dc},dc=com"
 root_ca_password="support123"
 pem_key_password="support123"
 KRB_DOMAIN_NAME="TANU.COM"
-kerberos_server_hostname="idm.tanu.com"
-ldap_server_host="idm.tanu.com"
+kerberos_server_hostname="onelogin.tanu.com"
+ldap_server_host="onelogin.tanu.com"
 
 ldap_user_profile_ou="ou=People,dc=${ldap_root_dc},dc=com"
 ldap_user_test="user5"
@@ -204,7 +204,7 @@ add: olcRootPW
 olcRootPW: ldap_secreat 
 EOF
 
-sed -i "s/ldap_secreat/"${ldap_secreat}"/g" /tmp/my_config2.ldif
+sed -i "s~ldap_secreat~"${ldap_secreat}"~g" /tmp/my_config2.ldif
 ldapmodify -Y EXTERNAL -H ldapi:/// -f /tmp/my_config2.ldif
 
 # replacing olcAccess attribute 
@@ -352,7 +352,7 @@ banner_msg "INFO: Creating ${KRB_DOMAIN_NAME} KDC Database"
 kdb5_util create -s -r ${KRB_DOMAIN_NAME}  -P ${KDC_KEY_PASSWD}
 check_file_exists "/etc/krb5.d/service.keyfile" "ERROR: ldap stash file creation failed in /etc/krb5.d/service.keyfile location"
 banner_msg "INFO: Creating kadmin.keytab. otherwise admin service won't start"
-kadmin.local -q "ktadd -k /var/kerberos/krb5kdc/kadmin.keytab kadmin/onelogin.tanu.com kadmin/onelogin.tanu.com kadmin/changepw"
+kadmin.local -q "ktadd -k /var/kerberos/krb5kdc/kadmin.keytab kadmin/admin kadmin/onelogin.tanu.com kadmin/onelogin.tanu.com kadmin/changepw"
 check_file_exists "/var/kerberos/krb5kdc/kadmin.keytab" "ERROR: kadmin.keytab file creation failed in var/kerberos/krb5kdc/kadmin.keytab location"
 
 echo -e "\n Starting KDC services"
@@ -364,6 +364,8 @@ chkconfig kadmin on
 }
 
 settingup_ldapclient_authentication() {
+
+CLIENT_FQDN_HOST=$(hostname -f)
 
 yum install -y openldap-clients nss-pam-ldapd net-tools krb5-workstation cyrus-sasl
 authconfig --enableldap --enableldapauth --ldapserver=ldaps://${ldap_server_host} --ldapbasedn="${ldap_user_profile_ou}" --enablemkhomedir --update
@@ -405,9 +407,13 @@ systemctl restart nslcd.service
 
 echo "SOCKETDIR=/var/run/saslauthd" >>/etc/sysconfig/saslauthd
 echo "MECH=kerberos5" >>/etc/sysconfig/saslauthd
+echo "KRB5_KTNAME=/etc/krb5.keytab" >>/etc/sysconfig/saslauthd
+
 systemctl restart saslauthd.service
 
 kadmin.local -q "addprinc -pw ${ldap_user_test_passwd} ${ldap_user_test}"
+kadmin.local -q "addprinc -randkey host/${CLIENT_FQDN_HOST}@TANU.COM"
+kadmin.local -q "ktadd -k /etc/krb5.keytab host/${CLIENT_FQDN_HOST}"
 }
 
 main
