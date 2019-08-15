@@ -16,11 +16,11 @@ ldap_olcRootDN="cn=admin,dc=${ldap_root_dc},dc=com"
 root_ca_password="support123"
 pem_key_password="support123"
 KRB_DOMAIN_NAME="TANU.COM"
-kerberos_server_hostname="idmlogin.tanu.com"
-ldap_server_host="idmlogin.tanu.com"
+kerberos_server_hostname="idm.tanu.com"
+ldap_server_host="idm.tanu.com"
 
 ldap_user_profile_ou="ou=People,dc=${ldap_root_dc},dc=com"
-ldap_user_test="user1"
+ldap_user_test="user5"
 ldap_user_test_passwd="test123"
 
 }
@@ -364,7 +364,8 @@ chkconfig kadmin on
 }
 
 settingup_ldapclient_authentication() {
-yum install -y openldap-clients nss-pam-ldapd
+
+yum install -y openldap-clients nss-pam-ldapd net-tools krb5-workstation cyrus-sasl
 authconfig --enableldap --enableldapauth --ldapserver=ldaps://${ldap_server_host} --ldapbasedn="${ldap_user_profile_ou}" --enablemkhomedir --update
 
 ldap_user_test_passwd_encty=$(slappasswd -s ${ldap_user_test_passwd})
@@ -386,7 +387,7 @@ gidNumber: 100
 homeDirectory: /home/ldap_user_test
 loginShell: /bin/bash
 gecos: Linuxuser [Admin (at) HostAdvice]
-userPassword: ldap_user_test_passwd_encty
+userPassword: {SASL}ldap_user_test@KRB_DOMAIN_NAME
 shadowLastChange: 17058
 shadowMin: 0
 shadowMax: 99999
@@ -395,12 +396,18 @@ EOF
 
 sed -i "s/ldap_user_profile_ou/${ldap_user_profile_ou}/g" /tmp/ldapusers.ldif
 sed -i "s/ldap_user_test/${ldap_user_test}/g" /tmp/ldapusers.ldif
-sed -i "s/ldap_user_test_passwd_encty/"${ldap_user_test_passwd_encty}"/g" /tmp/ldapusers.ldif
+sed -i "s/KRB_DOMAIN_NAME/"${KRB_DOMAIN_NAME}"/g" /tmp/ldapusers.ldif
 ldapadd -h localhost -D "${ldap_olcRootDN}" -w ${openldap_secreat} -f /tmp/ldapusers.ldif 
 echo "TLS_CACERT  /etc/ssl/certs/${kerberos_server_hostname}/MyRootCA.pem" >>/etc/nslcd.conf
 echo "binddn ${ldap_olcRootDN}" >>/etc/nslcd.conf
 echo "bindpw ${openldap_secreat}" >>/etc/nslcd.conf
 systemctl restart nslcd.service
+
+echo "SOCKETDIR=/var/run/saslauthd" >>/etc/sysconfig/saslauthd
+echo "MECH=kerberos5" >>/etc/sysconfig/saslauthd
+systemctl restart saslauthd.service
+
+kadmin.local -q "addprinc -pw ${ldap_user_test_passwd} ${ldap_user_test}"
 }
 
 main
