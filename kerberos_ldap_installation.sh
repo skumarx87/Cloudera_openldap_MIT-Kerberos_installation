@@ -461,6 +461,7 @@ install_sasl_service(){
 yum -y install cyrus-sasl
 
 banner_msg "INFO: Creating /etc/sasl2/slapd.conf file for LDAP Sasl authencation"
+banner_msg "INFO: dont fotget to copy /etc/ssl/certs/${kerberos_server_hostname}/MyRootCA.pem file from kerber server to all the client in same folder path otherwise LDAP bind will not work"
 
 cat > /etc/sasl2/slapd.conf <<- "EOF"
 mech_list: external gssapi plain
