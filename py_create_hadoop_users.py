@@ -10,13 +10,14 @@ def main():
 	user_id_start_value=3000
 	global user_map
 	global groups
-	with open("hadoo_users_map.txt") as f:
+	with open("hadoop_users_map.txt") as f:
 		 for line in f:
-			user=line.strip().split(":")[0]
-			group=line.strip().split(":")[1].split(",")
-			user_map[user]=group
-			groups.extend(group)
-			users.append(user)
+			if not line.startswith("#"):
+				user=line.strip().split(":")[0]
+				group=line.strip().split(":")[1].split(",")
+				user_map[user]=group
+				groups.extend(group)
+				users.append(user)
 	#groups = list(dict.fromkeys(groups)) ## remove dublicate
 	for group_name in groups:
 		group_id_start_value += 1
@@ -25,16 +26,6 @@ def main():
 	for user_name in users:
 		user_id_start_value +=1
 		user_ids_map[user_name] = user_id_start_value
-def create_group_ldif():
-	global groups
-	global user_map
-	groups = list(dict.fromkeys(groups)) ## remove dublicate
-	for grp in groups:
-		print("dn: cn={},{}".format(grp,ldap_group_profile_ou))
-		print("objectClass: top")
-		print("objectClass: posixGroup")
-		print("gidNumber: {}".format(group_ids_map[grp]))
-		print("")
 
 def create_domain_suffix_and_ou():
 	user_ou_name=ldap_user_profile_ou.split(",")[0].split("=")[1]
@@ -54,8 +45,10 @@ ou: {group_ou_name}
 dn: {user_ou} 
 objectclass: organizationalunit
 ou: {user_ou_name} 
+
 	"""
-	print(line.format(root_domain=root_dc,domain=domain_lower,group_ou=ldap_group_profile_ou,user_ou=ldap_user_profile_ou,group_ou_name=group_ou_name,user_ou_name=user_ou_name))
+	print(line.format(root_domain=root_dc,domain=domain_lower,group_ou=ldap_group_profile_ou,user_ou=ldap_user_profile_ou,group_ou_name=group_ou_name,user_ou_name=user_ou_name).strip())
+	print("")
 		
 
 def create_user_ldif():
@@ -76,7 +69,7 @@ uidNumber: {userid}
 gidNumber: {gidno}
 homeDirectory: /home/{username}
 loginShell: /bin/bash
-gecos: Linuxuser [Admin (at) HostAdvice]
+gecos: Hadoop users and groups
 userPassword: {encypt_type}{username}@{KRB_DOMAIN}
 shadowLastChange: 17058
 shadowMin: 0
@@ -90,13 +83,29 @@ shadowWarning: 7
 		#	print(y)
 			x = (x + y)
 			#print("gidNumber: {}".format(group_id))
+
+def create_group_ldif():
+	global groups
+	groups = list(dict.fromkeys(groups))
+	for group in groups:
+		print("dn: cn={},{}".format(group,ldap_group_profile_ou))
+		print("objectClass: top")
+		print("objectClass: posixGroup")
+		print("gidNumber: {}".format(group_ids_map[group]))
+		for k in user_map:
+			if group in user_map[k]:
+				print("memberUid: {}".format(k))
+		print("")
+	
+		
+
 		
 KRB_DOMAIN="TANU.COM"
 ldap_user_profile_ou="ou=People,dc=tanu,dc=com"
 ldap_group_profile_ou="ou=Groups,dc=tanu,dc=com"
 root_dc="dc=tanu,dc=com"
 
-users=[]
+#users=[]
 #groups=[]
 #user_map={}
 #group_ids_map={}

@@ -1,3 +1,6 @@
+##############################
+#username:group1,group2,etc  #
+##############################
 cloudera-scm:cloudera-scm
 accumulo:accumulo
 flume:flume
