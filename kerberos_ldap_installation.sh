@@ -16,8 +16,8 @@ ldap_olcRootDN="cn=admin,dc=${ldap_root_dc},dc=com"
 root_ca_password="support123"
 pem_key_password="support123"
 KRB_DOMAIN_NAME="TANU.COM"
-kerberos_server_hostname="onelogin.tanu.com"
-ldap_server_host="onelogin.tanu.com"
+kerberos_server_hostname="idm.tanu.com"
+ldap_server_host="idm.tanu.com"
 
 ldap_user_profile_ou="ou=People,dc=${ldap_root_dc},dc=com"
 ldap_user_test="user5"
@@ -25,8 +25,15 @@ ldap_user_test_passwd="test123"
 
 }
 
-install_git() {
+presetup() {
 
+yum -y install git-core net-tools krb5-workstation
+
+hostnamectl set-hostname ${kerberos_server_hostname} 
+sed '/^SELINUX/s/=.*$/=disabled/' /etc/selinux/config
+echo 0 > /sys/fs/selinux/enforce
+systemctl stop firewalld.service
+systemctl disable firewalld.service
 yum -y install git-core net-tools krb5-workstation
 
 
@@ -168,7 +175,9 @@ cp -rv ${kerberos_server_hostname}/${kerberos_server_hostname}.* /etc/ssl/certs/
 
 openldap_installation() {
 banner_msg "INFO: Running openldap_installation function"
-yum -y install openldap-clients openldap-servers
+yum -y install openldap-clients openldap-servers 
+
+
 systemctl start slapd
 systemctl enable slapd
 systemctl status slapd
@@ -352,7 +361,7 @@ banner_msg "INFO: Creating ${KRB_DOMAIN_NAME} KDC Database"
 kdb5_util create -s -r ${KRB_DOMAIN_NAME}  -P ${KDC_KEY_PASSWD}
 check_file_exists "/etc/krb5.d/service.keyfile" "ERROR: ldap stash file creation failed in /etc/krb5.d/service.keyfile location"
 banner_msg "INFO: Creating kadmin.keytab. otherwise admin service won't start"
-kadmin.local -q "ktadd -k /var/kerberos/krb5kdc/kadmin.keytab kadmin/admin kadmin/onelogin.tanu.com kadmin/onelogin.tanu.com kadmin/changepw"
+kadmin.local -q "ktadd -k /var/kerberos/krb5kdc/kadmin.keytab kadmin/admin kadmin/${kerberos_server_hostnam} kadmin/${kerberos_server_hostnam} kadmin/changepw"
 check_file_exists "/var/kerberos/krb5kdc/kadmin.keytab" "ERROR: kadmin.keytab file creation failed in var/kerberos/krb5kdc/kadmin.keytab location"
 
 echo -e "\n Starting KDC services"
@@ -367,7 +376,7 @@ settingup_ldapclient_authentication() {
 
 CLIENT_FQDN_HOST=$(hostname -f)
 
-yum install -y openldap-clients nss-pam-ldapd net-tools krb5-workstation cyrus-sasl
+yum install -y openldap-clients nss-pam-ldapd net-tools krb5-workstation
 authconfig --enableldap --enableldapauth --ldapserver=ldaps://${ldap_server_host} --ldapbasedn="${ldap_user_profile_ou}" --enablemkhomedir --update
 
 ldap_user_test_passwd_encty=$(slappasswd -s ${ldap_user_test_passwd})
@@ -405,22 +414,36 @@ echo "binddn ${ldap_olcRootDN}" >>/etc/nslcd.conf
 echo "bindpw ${openldap_secreat}" >>/etc/nslcd.conf
 systemctl restart nslcd.service
 
-echo "SOCKETDIR=/var/run/saslauthd" >>/etc/sysconfig/saslauthd
-echo "MECH=kerberos5" >>/etc/sysconfig/saslauthd
-echo "KRB5_KTNAME=/etc/krb5.keytab" >>/etc/sysconfig/saslauthd
-
-systemctl restart saslauthd.service
 
 kadmin.local -q "addprinc -pw ${ldap_user_test_passwd} ${ldap_user_test}"
 kadmin.local -q "addprinc -randkey host/${CLIENT_FQDN_HOST}@${KRB_DOMAIN_NAME}"
 kadmin.local -q "ktadd -k /etc/krb5.keytab host/${CLIENT_FQDN_HOST}"
 }
 
+install_sasl_service(){
+
+yum -y install cyrus-sasl
+
+banner_msg "INFO: Creating /etc/sasl2/slapd.conf file for LDAP Sasl authencation"
+
+cat > /etc/sasl2/slapd.conf <<- "EOF"
+mech_list: external gssapi plain
+pwcheck_method: saslauthd
+EOF
+
+echo "SOCKETDIR=/var/run/saslauthd" >>/etc/sysconfig/saslauthd
+echo "MECH=kerberos5" >>/etc/sysconfig/saslauthd
+echo "KRB5_KTNAME=/etc/krb5.keytab" >>/etc/sysconfig/saslauthd
+systemctl restart saslauthd.service
+
+}
+
 main
-#install_git
+presetup
 create_root_ca_pair
 creating_ldap_ssl_pair_pem
 openldap_installation
+install_sasl_service
 enable_ldap_tls
 install_kerberos_server
 enable_kerberos_ldap_backend
