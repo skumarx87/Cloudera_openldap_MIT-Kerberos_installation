@@ -6,7 +6,7 @@ main() {
 
 KRB_DOMAIN_NAME="TANU.COM"
 KDC_KEY_PASSWD=kdc123
-KDC_ADMIN_PASSWD=admin123
+KDC_ADMIN_PASSWD=sathish123
 
 ldap_root_dc="tanu"
 openldap_secreat="support123"
@@ -382,6 +382,7 @@ kdb5_util create -s -r ${KRB_DOMAIN_NAME}  -P ${KDC_KEY_PASSWD}
 check_file_exists "/etc/krb5.d/service.keyfile" "ERROR: ldap stash file creation failed in /etc/krb5.d/service.keyfile location"
 banner_msg "INFO: Creating kadmin.keytab. otherwise admin service won't start"
 kadmin.local -q "ktadd -k /var/kerberos/krb5kdc/kadmin.keytab kadmin/admin kadmin/${kerberos_server_hostnam} kadmin/${kerberos_server_hostnam} kadmin/changepw"
+kadmin.local -q "addprinc -pw ${KDC_ADMIN_PASSWD} root/admin@${KRB_DOMAIN_NAME}"
 check_file_exists "/var/kerberos/krb5kdc/kadmin.keytab" "ERROR: kadmin.keytab file creation failed in var/kerberos/krb5kdc/kadmin.keytab location"
 
 echo -e "\n Starting KDC services"
@@ -442,17 +443,24 @@ kadmin.local -q "ktadd -k /etc/krb5.keytab host/${CLIENT_FQDN_HOST}"
 
 setting_kerberos_ldap_client(){
 
+check_file_exists "/etc/ssl/certs/${kerberos_server_hostname}/MyRootCA.pem" "ERROR: ensure /etc/ssl/certs/${kerberos_server_hostname}/MyRootCA.pem file copied from kerberos server to all the client hosts in same folder path otherwise ldap connection(bind) will fail with ssl handshake error"
+CLIENT_FQDN_HOST=$(hostname -f)
 banner_msg "INFO: setting_kerberos_ldap_client installation/configuration"
 
 yum install -y openldap-clients nss-pam-ldapd net-tools krb5-workstation
 create_krb5_conf
 authconfig --enableldap --enableldapauth --ldapserver=ldaps://${ldap_server_host} --ldapbasedn="${ldap_user_profile_ou}" --enablemkhomedir --update
 
+banner_msg "INFO: Creating host keytab file"
+
+kadmin -w ${KDC_ADMIN_PASSWD} -q "addprinc -pw ${ldap_user_test_passwd} ${ldap_user_test}"
+kadmin -w ${KDC_ADMIN_PASSWD} -q "addprinc -randkey host/${CLIENT_FQDN_HOST}@${KRB_DOMAIN_NAME}"
+kadmin -w ${KDC_ADMIN_PASSWD} -q "ktadd -k /etc/krb5.keytab host/${CLIENT_FQDN_HOST}"
+
 echo "TLS_CACERT  /etc/ssl/certs/${kerberos_server_hostname}/MyRootCA.pem" >>/etc/nslcd.conf
 echo "binddn ${ldap_olcRootDN}" >>/etc/nslcd.conf
 echo "bindpw ${openldap_secreat}" >>/etc/nslcd.conf
 systemctl restart nslcd.service
-
 
 }
 
