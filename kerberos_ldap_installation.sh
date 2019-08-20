@@ -23,14 +23,30 @@ ldap_user_profile_ou="ou=People,dc=${ldap_root_dc},dc=com"
 ldap_user_test="user5"
 ldap_user_test_passwd="test123"
 
+client_hostname="client1.tanu.com"
+
 }
 
-presetup() {
+server_presetup() {
 
 yum -y install git-core net-tools krb5-workstation
 
 hostnamectl set-hostname ${kerberos_server_hostname} 
-sed '/^SELINUX/s/=.*$/=disabled/' /etc/selinux/config
+sed -i '/^SELINUX/s/=.*$/=disabled/' /etc/selinux/config
+echo 0 > /sys/fs/selinux/enforce
+systemctl stop firewalld.service
+systemctl disable firewalld.service
+yum -y install git-core net-tools krb5-workstation
+
+
+}
+
+client_presetup() {
+
+yum -y install git-core net-tools krb5-workstation
+
+hostnamectl set-hostname ${client_hostname}
+sed -i '/^SELINUX/s/=.*$/=disabled/' /etc/selinux/config
 echo 0 > /sys/fs/selinux/enforce
 systemctl stop firewalld.service
 systemctl disable firewalld.service
@@ -62,6 +78,10 @@ banner_msg() {
 create_krb5_conf() {
 
 banner_msg "INFO: creating krb5.conf file"
+
+DOMAIN_UPPER=$(echo $KRB_DOMAIN_NAME|  tr '[:lower:]' '[:upper:]')
+DOMAIN_LOWER=$(echo $KRB_DOMAIN_NAME|  tr '[:upper:]' '[:lower:]')
+
 
 cat > /etc/krb5.conf <<- "EOF"
 [libdefaults]
@@ -420,6 +440,22 @@ kadmin.local -q "addprinc -randkey host/${CLIENT_FQDN_HOST}@${KRB_DOMAIN_NAME}"
 kadmin.local -q "ktadd -k /etc/krb5.keytab host/${CLIENT_FQDN_HOST}"
 }
 
+setting_kerberos_ldap_client(){
+
+banner_msg "INFO: setting_kerberos_ldap_client installation/configuration"
+
+yum install -y openldap-clients nss-pam-ldapd net-tools krb5-workstation
+create_krb5_conf
+authconfig --enableldap --enableldapauth --ldapserver=ldaps://${ldap_server_host} --ldapbasedn="${ldap_user_profile_ou}" --enablemkhomedir --update
+
+echo "TLS_CACERT  /etc/ssl/certs/${kerberos_server_hostname}/MyRootCA.pem" >>/etc/nslcd.conf
+echo "binddn ${ldap_olcRootDN}" >>/etc/nslcd.conf
+echo "bindpw ${openldap_secreat}" >>/etc/nslcd.conf
+systemctl restart nslcd.service
+
+
+}
+
 install_sasl_service(){
 
 yum -y install cyrus-sasl
@@ -439,13 +475,38 @@ systemctl restart saslauthd.service
 }
 
 main
-presetup
-create_root_ca_pair
-creating_ldap_ssl_pair_pem
-openldap_installation
-install_sasl_service
-enable_ldap_tls
-install_kerberos_server
-enable_kerberos_ldap_backend
-creating_kerberos_db
-settingup_ldapclient_authentication
+case "$1" in
+	server_setup)
+		server_presetup
+		create_root_ca_pair
+		creating_ldap_ssl_pair_pem
+		openldap_installation
+		install_sasl_service
+		enable_ldap_tls
+		install_kerberos_server
+		enable_kerberos_ldap_backend
+		creating_kerberos_db
+		;;
+	client_setup)
+		client_presetup
+		setting_kerberos_ldap_client
+		;;
+	*)
+		echo $"Usage: $0 {server_setup|client_setup}"
+		exit 2
+		;;
+esac
+
+#server_presetup
+#create_root_ca_pair
+#creating_ldap_ssl_pair_pem
+#openldap_installation
+#install_sasl_service
+#enable_ldap_tls
+#install_kerberos_server
+#enable_kerberos_ldap_backend
+#creating_kerberos_db
+#client_presetup
+#setting_kerberos_ldap_client
+#settingup_ldapclient_authentication
+#create_krb5_conf
