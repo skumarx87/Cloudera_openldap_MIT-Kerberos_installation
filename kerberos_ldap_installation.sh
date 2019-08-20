@@ -412,7 +412,7 @@ echo "KRB5_KTNAME=/etc/krb5.keytab" >>/etc/sysconfig/saslauthd
 systemctl restart saslauthd.service
 
 kadmin.local -q "addprinc -pw ${ldap_user_test_passwd} ${ldap_user_test}"
-kadmin.local -q "addprinc -randkey host/${CLIENT_FQDN_HOST}@TANU.COM"
+kadmin.local -q "addprinc -randkey host/${CLIENT_FQDN_HOST}@${KRB_DOMAIN_NAME}"
 kadmin.local -q "ktadd -k /etc/krb5.keytab host/${CLIENT_FQDN_HOST}"
 }
 
