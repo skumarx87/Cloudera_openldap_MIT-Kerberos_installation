@@ -1,15 +1,28 @@
-users=[]
-groups=[]
-user_map={}
-group_ids_map={}
-user_ids_map={}
-x = ''
+#users=[]
+#groups=[]
+#user_map={}
+#group_ids_map={}
+#user_ids_map={}
+#x = ''
+
+
+import argparse
+import sys
 
 def main():
+	global groups
+	global users
+	global group_ids_map
+	global user_ids_map
+	global user_map
+
 	group_id_start_value=2000
 	user_id_start_value=3000
-	global user_map
-	global groups
+	user_map={}
+	groups=[]
+	users=[]	
+	group_ids_map={}
+	user_ids_map={}
 	with open("hadoop_users_map.txt") as f:
 		 for line in f:
 			if not line.startswith("#"):
@@ -32,11 +45,11 @@ def create_domain_suffix_and_ou():
 	group_ou_name=ldap_group_profile_ou.split(",")[0].split("=")[1]
 	domain_lower=KRB_DOMAIN.lower().split(".")[0]
 	line="""
-dn: {root_domain} 
-objectClass: dcObject
-objectClass: organization
-dc: {domain} 
-o: {domain} 
+#dn: {root_domain} 
+#objectClass: dcObject
+#objectClass: organization
+#dc: {domain} 
+#o: {domain} 
 
 dn: {group_ou} 
 objectclass: organizationalunit
@@ -97,23 +110,59 @@ def create_group_ldif():
 				print("memberUid: {}".format(k))
 		print("")
 	
+def silent_mode_ldif_generate():
+	global ldap_user_profile_ou
+	global ldap_group_profile_ou
+	global KRB_DOMAIN
+	global root_dc
+
+	KRB_DOMAIN=args.krb_domain
+	ldap_user_profile_ou=args.ldap_user_ou
+	ldap_group_profile_ou=args.ldap_group_ou
+	root_dc=args.rootdc
+	main()
+	create_domain_suffix_and_ou()	
+	create_group_ldif()
+	create_user_ldif()
 		
 
+def generate_ldif_file():
+
+        global ldap_user_profile_ou
+        global ldap_group_profile_ou
+        global KRB_DOMAIN
+        global root_dc
+
+	KRB_DOMAIN="TANU.COM"
+	ldap_user_profile_ou="ou=People,dc=tanu,dc=com"
+	ldap_group_profile_ou="ou=Groups,dc=tanu,dc=com"
+	root_dc="dc=tanu,dc=com"
+
+        main()
+        create_domain_suffix_and_ou()
+        create_group_ldif()
+        create_user_ldif()
 		
-KRB_DOMAIN="TANU.COM"
-ldap_user_profile_ou="ou=People,dc=tanu,dc=com"
-ldap_group_profile_ou="ou=Groups,dc=tanu,dc=com"
-root_dc="dc=tanu,dc=com"
+#KRB_DOMAIN="TANU.COM"
+#ldap_user_profile_ou="ou=People,dc=tanu,dc=com"
+#ldap_group_profile_ou="ou=Groups,dc=tanu,dc=com"
+#root_dc="dc=tanu,dc=com"
 
-#users=[]
-#groups=[]
-#user_map={}
-#group_ids_map={}
-#user_ids_map={}
-#group_id_start_value=700
-#user_id_start_value=800
+ap=argparse.ArgumentParser()
+ap.add_argument("--silent",required=False,help="silent installation from shell script",action='store_true')
+ap.add_argument("--krb_domain",required='--silent' in sys.argv,help="keberos domain name ex. EXAMPLE.COM")
+ap.add_argument("--rootdc",required='--silent' in sys.argv,help="root suffix of the ldap ex. dc=exmple,dc=com")
+ap.add_argument("--ldap_user_ou",required='--silent' in sys.argv,help="OU of the user Profile ex. ou=peopls,dc=exmple,dc=com")
+ap.add_argument("--ldap_group_ou",required='--silent' in sys.argv,help="OU of the Group Profile ex. ou=groups,dc=exmple,dc=com")
+args=ap.parse_args()
 
-main()
-create_domain_suffix_and_ou()
-create_group_ldif()
-create_user_ldif()
+if args.silent:
+	silent_mode_ldif_generate()
+else:
+	generate_ldif_file()
+	
+
+#main()
+#create_domain_suffix_and_ou()
+#create_group_ldif()
+#create_user_ldif()

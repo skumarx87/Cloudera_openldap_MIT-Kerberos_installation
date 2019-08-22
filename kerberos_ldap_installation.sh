@@ -15,15 +15,15 @@ ldap_olcRootDN="cn=admin,dc=${ldap_root_dc},dc=com"
 
 root_ca_password="support123"
 pem_key_password="support123"
-KRB_DOMAIN_NAME="TANU.COM"
 kerberos_server_hostname="idm.tanu.com"
 ldap_server_host="idm.tanu.com"
 
 ldap_user_profile_ou="ou=People,dc=${ldap_root_dc},dc=com"
+ldap_group_profile_ou="ou=Groups,dc=${ldap_root_dc},dc=com"
 ldap_user_test="user5"
 ldap_user_test_passwd="test123"
 
-client_hostname="client1.tanu.com"
+#client_hostname="client1.tanu.com"
 
 }
 
@@ -31,7 +31,7 @@ server_presetup() {
 
 yum -y install git-core net-tools krb5-workstation
 
-hostnamectl set-hostname ${kerberos_server_hostname} 
+#hostnamectl set-hostname ${kerberos_server_hostname} 
 sed -i '/^SELINUX/s/=.*$/=disabled/' /etc/selinux/config
 echo 0 > /sys/fs/selinux/enforce
 systemctl stop firewalld.service
@@ -449,7 +449,7 @@ banner_msg "INFO: setting_kerberos_ldap_client installation/configuration"
 
 yum install -y openldap-clients nss-pam-ldapd net-tools krb5-workstation
 create_krb5_conf
-authconfig --enableldap --enableldapauth --ldapserver=ldaps://${ldap_server_host} --ldapbasedn="${ldap_user_profile_ou}" --enablemkhomedir --update
+authconfig --enableldap --enableldapauth --ldapserver=ldaps://${ldap_server_host} --ldapbasedn="${ldap_olcSuffix}" --enablemkhomedir --update
 
 banner_msg "INFO: Creating host keytab file"
 
@@ -483,7 +483,20 @@ systemctl restart saslauthd.service
 
 }
 
+create_hadoop_users() {
+
+banner_msg "INFO: Called create_hadoop_users function"
+banner_msg "INFO: generating ldif file for hadoop users and groups"
+>/tmp/tmp_hadoop_users.ldif
+
+python py_create_hadoop_users.py --silent --rootdc "${ldap_olcSuffix}" --ldap_user_ou "${ldap_user_profile_ou}" --ldap_group_ou "${ldap_group_profile_ou}" --krb_domain "${KRB_DOMAIN_NAME}" |tee -a /tmp/tmp_hadoop_users.ldif
+
+ldapadd -c -h localhost -D "${ldap_olcRootDN}" -w ${openldap_secreat} -f /tmp/tmp_hadoop_users.ldif
+
+}
+
 main
+
 case "$1" in
 	server_setup)
 		server_presetup
@@ -500,8 +513,12 @@ case "$1" in
 		client_presetup
 		setting_kerberos_ldap_client
 		;;
+	create_hadoop_users)
+		create_hadoop_users
+		;;
+		
 	*)
-		echo $"Usage: $0 {server_setup|client_setup}"
+		echo $"Usage: $0 {server_setup|client_setup|create_hadoop_users}"
 		exit 2
 		;;
 esac
