@@ -498,7 +498,7 @@ banner_msg "INFO: generating ldif file for hadoop users and groups"
 
 python py_create_hadoop_users.py --silent --rootdc "${ldap_olcSuffix}" --ldap_user_ou "${ldap_user_profile_ou}" --ldap_group_ou "${ldap_group_profile_ou}" --krb_domain "${KRB_DOMAIN_NAME}" |tee -a /tmp/tmp_hadoop_users.ldif
 
-ldapadd -c -h localhost -D "${ldap_olcRootDN}" -w ${openldap_secreat} -f /tmp/tmp_hadoop_users.ldif
+ldapadd -c -h ${ldap_server_host} -D "${ldap_olcRootDN}" -w ${openldap_secreat} -f /tmp/tmp_hadoop_users.ldif
 
 }
 
