@@ -15,8 +15,8 @@ ldap_olcRootDN="cn=admin,dc=${ldap_root_dc},dc=com"
 
 root_ca_password="support123"
 pem_key_password="support123"
-kerberos_server_hostname="idm.tanu.com"
-ldap_server_host="idm.tanu.com"
+kerberos_server_hostname="onelogin.tanu.com"
+ldap_server_host="onelogin.tanu.com"
 
 ldap_user_profile_ou="ou=People,dc=${ldap_root_dc},dc=com"
 ldap_group_profile_ou="ou=Groups,dc=${ldap_root_dc},dc=com"
@@ -158,6 +158,13 @@ yum -y install krb5-server krb5-libs
 yum -y install krb5-server-ldap
 
 create_krb5_conf
+
+cat > /var/kerberos/krb5kdc/kadm5.acl <<- "EOF"
+*/admin@DOMAIN.COM        *
+
+EOF
+
+sed -i "s/DOMAIN.COM/${DOMAIN_UPPER}/"g /var/kerberos/krb5kdc/kadm5.acl
 
 }
 
