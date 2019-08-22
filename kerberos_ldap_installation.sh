@@ -21,6 +21,7 @@ ldap_server_host="onelogin.tanu.com"
 ldap_user_profile_ou="ou=People,dc=${ldap_root_dc},dc=com"
 ldap_group_profile_ou="ou=Groups,dc=${ldap_root_dc},dc=com"
 ldap_user_test="user5"
+hadoo_users_password="support123"
 ldap_user_test_passwd="test123"
 
 #client_hostname="client1.tanu.com"
@@ -499,6 +500,13 @@ banner_msg "INFO: generating ldif file for hadoop users and groups"
 python py_create_hadoop_users.py --silent --rootdc "${ldap_olcSuffix}" --ldap_user_ou "${ldap_user_profile_ou}" --ldap_group_ou "${ldap_group_profile_ou}" --krb_domain "${KRB_DOMAIN_NAME}" |tee -a /tmp/tmp_hadoop_users.ldif
 
 ldapadd -c -h ${ldap_server_host} -D "${ldap_olcRootDN}" -w ${openldap_secreat} -f /tmp/tmp_hadoop_users.ldif
+
+for _hadoop_user in $(cat hadoop_users_map.txt|grep -v "^#")
+	do 
+	hadoop_user=$(echo $_hadoop_user|cut -d":" -f1)
+	echo "Creating kdc user principle $hadoop_user"
+	kadmin -w ${KDC_ADMIN_PASSWD} -q "addprinc -pw ${hadoo_users_password} ${hadoop_user}"
+	done
 
 }
 
