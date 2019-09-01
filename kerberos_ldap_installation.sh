@@ -15,13 +15,13 @@ ldap_olcRootDN="cn=admin,dc=${ldap_root_dc},dc=com"
 
 root_ca_password="support123"
 pem_key_password="support123"
-kerberos_server_hostname="onelogin.tanu.com"
-ldap_server_host="onelogin.tanu.com"
+kerberos_server_hostname="idm.tanu.com"
+ldap_server_host="idm.tanu.com"
 
 ldap_user_profile_ou="ou=People,dc=${ldap_root_dc},dc=com"
 ldap_group_profile_ou="ou=Groups,dc=${ldap_root_dc},dc=com"
 ldap_user_test="user5"
-hadoo_users_password="support123"
+hadoop_users_password="support123"
 ldap_user_test_passwd="test123"
 
 #client_hostname="client1.tanu.com"
@@ -505,7 +505,7 @@ for _hadoop_user in $(cat hadoop_users_map.txt|grep -v "^#")
 	do 
 	hadoop_user=$(echo $_hadoop_user|cut -d":" -f1)
 	echo "Creating kdc user principle $hadoop_user"
-	kadmin -w ${KDC_ADMIN_PASSWD} -q "addprinc -pw ${hadoo_users_password} ${hadoop_user}"
+	kadmin -w ${KDC_ADMIN_PASSWD} -q "addprinc -pw ${hadoop_users_password} ${hadoop_user}"
 	done
 
 }
