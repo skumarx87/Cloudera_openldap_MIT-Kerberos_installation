@@ -30,7 +30,7 @@ ldap_user_test_passwd="test123"
 
 server_presetup() {
 
-yum -y install git-core net-tools krb5-workstation
+yum -y install git-core net-tools krb5-workstation curl wget
 
 #hostnamectl set-hostname ${kerberos_server_hostname} 
 sed -i '/^SELINUX/s/=.*$/=disabled/' /etc/selinux/config
@@ -44,7 +44,7 @@ yum -y install git-core net-tools krb5-workstation
 
 client_presetup() {
 
-yum -y install git-core net-tools krb5-workstation
+yum -y install git-core net-tools krb5-workstation curl wget
 
 #hostnamectl set-hostname ${client_hostname}
 sed -i '/^SELINUX/s/=.*$/=disabled/' /etc/selinux/config
@@ -477,6 +477,8 @@ install_sasl_service(){
 yum -y install cyrus-sasl
 
 banner_msg "INFO: Creating /etc/sasl2/slapd.conf file for LDAP Sasl authencation"
+mkdir -p /etc/ssl/certs/${kerberos_server_hostname}/
+curl -o /etc/ssl/certs/${kerberos_server_hostname}/MyRootCA.pem http://${kerberos_server_hostname}/MyRootCA.pem
 banner_msg "INFO: dont fotget to copy /etc/ssl/certs/${kerberos_server_hostname}/MyRootCA.pem file from kerber server to all the client in same folder path otherwise LDAP bind will not work"
 
 cat > /etc/sasl2/slapd.conf <<- "EOF"
@@ -509,6 +511,13 @@ for _hadoop_user in $(cat hadoop_users_map.txt|grep -v "^#")
 	done
 
 }
+setup_webserver_gcp_ca_expose() {
+yum -y install httpd
+systemctl start httpd
+systemctl enable httpd.service
+cp /etc/ssl/certs/${kerberos_server_hostname}/MyRootCA.pem /var/www/html/
+
+}
 
 main
 
@@ -531,9 +540,12 @@ case "$1" in
 	create_hadoop_users)
 		create_hadoop_users
 		;;
+	setup_webserver)
+		setup_webserver_gcp_ca_expose
+		;;
 		
 	*)
-		echo $"Usage: $0 {server_setup|client_setup|create_hadoop_users}"
+		echo $"Usage: $0 {server_setup|client_setup|create_hadoop_users|setup_webserver}"
 		exit 2
 		;;
 esac
