@@ -46,7 +46,7 @@ client_presetup() {
 
 yum -y install git-core net-tools krb5-workstation
 
-hostnamectl set-hostname ${client_hostname}
+#hostnamectl set-hostname ${client_hostname}
 sed -i '/^SELINUX/s/=.*$/=disabled/' /etc/selinux/config
 echo 0 > /sys/fs/selinux/enforce
 systemctl stop firewalld.service
