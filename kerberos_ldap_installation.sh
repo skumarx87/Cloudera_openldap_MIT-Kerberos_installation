@@ -451,6 +451,8 @@ kadmin.local -q "ktadd -k /etc/krb5.keytab host/${CLIENT_FQDN_HOST}"
 
 setting_kerberos_ldap_client(){
 
+mkdir -p /etc/ssl/certs/${kerberos_server_hostname}
+curl -o /etc/ssl/certs/${kerberos_server_hostname}/MyRootCA.pem http://${kerberos_server_hostname}/MyRootCA.pem
 check_file_exists "/etc/ssl/certs/${kerberos_server_hostname}/MyRootCA.pem" "ERROR: ensure /etc/ssl/certs/${kerberos_server_hostname}/MyRootCA.pem file copied from kerberos server to all the client hosts in same folder path otherwise ldap connection(bind) will fail with ssl handshake error"
 CLIENT_FQDN_HOST=$(hostname -f)
 banner_msg "INFO: setting_kerberos_ldap_client installation/configuration"
