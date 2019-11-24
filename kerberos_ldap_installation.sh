@@ -384,7 +384,7 @@ creating_kerberos_db() {
 #kdb5_ldap_util -D ${ldap_olcRootDN}  -H ldaps://${ldap_server_host} create -subtrees ${ldap_olcSuffix} -sscope SUB -r ${KRB_DOMAIN_NAME} -w ${openldap_secreat} -P ${KDC_KEY_PASSWD}
 [ -d /etc/krb5.d/ ] || mkdir -p /etc/krb5.d/
 banner_msg "INFO: type this password to create ldap stash password : ${openldap_secreat}"
-kdb5_ldap_util -D ${ldap_olcRootDN} -w ${openldap_secreat} stashsrvpw -f /etc/krb5.d/service.keyfile ${ldap_olcRootDN}
+echo -e "${openldap_secreat}\n${openldap_secreat}"|kdb5_ldap_util -D ${ldap_olcRootDN} -w ${openldap_secreat} stashsrvpw -f /etc/krb5.d/service.keyfile ${ldap_olcRootDN}
 banner_msg "INFO: Creating ${KRB_DOMAIN_NAME} KDC Database"
 kdb5_util create -s -r ${KRB_DOMAIN_NAME}  -P ${KDC_KEY_PASSWD}
 check_file_exists "/etc/krb5.d/service.keyfile" "ERROR: ldap stash file creation failed in /etc/krb5.d/service.keyfile location"
