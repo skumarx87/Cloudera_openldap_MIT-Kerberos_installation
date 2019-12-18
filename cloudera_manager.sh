@@ -2,6 +2,7 @@
 
 CLOUDERA_REPO_URL=https://archive.cloudera.com/cm6/6.3.1/redhat7/yum/cloudera-manager.repo
 MYSQL_SECRET="mysqladmin"
+Hadoop_databases="scm amon rman hue metastore sentry nav navms oozie"
 
 function banner_msg() {
 echo "------------------------------------------------------"
