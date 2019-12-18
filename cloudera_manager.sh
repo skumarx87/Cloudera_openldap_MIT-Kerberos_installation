@@ -25,4 +25,7 @@ rpm -ivh mysql-community-release-el7-5.noarch.rpm
 yum -y install mysql-server
 systemctl start mysqld
 systemctl enable mysqld
-echo -e "\n\\${MYSQL_SECRET}\n${MYSQL_SECRET}\n\n\nn\n\n " | mysql_secure_installation 2>/dev/null
+mysql -e "UPDATE mysql.user SET Password = PASSWORD('${MYSQL_SECRET}') WHERE User = 'root'"
+mysql -e "DROP USER ''@'localhost'"
+mysql -e "DROP USER ''@'$(hostname)'"
+mysql -e "FLUSH PRIVILEGES
