@@ -29,3 +29,12 @@ mysql -e "UPDATE mysql.user SET Password = PASSWORD('${MYSQL_SECRET}') WHERE Use
 mysql -e "DROP USER ''@'localhost'"
 mysql -e "DROP USER ''@'$(hostname)'"
 mysql -e "FLUSH PRIVILEGES"
+banner_msg "Creating hadoop services databases"
+for hd_database in ${Hadoop_databases}
+        do
+        banner_msg "Creating ${hd_database} database and user ${hd_database}"
+        mysql -uroot -p${MYSQL_SECRET} -e "CREATE DATABASE ${hd_database} /*\!40100 DEFAULT CHARACTER SET utf8 */;"
+        mysql -uroot -p${MYSQL_SECRET} -e "CREATE USER ${hd_database}@localhost IDENTIFIED BY '${hd_database}';"
+        mysql -uroot -p${MYSQL_SECRET} -e "GRANT ALL PRIVILEGES ON ${hd_database}.* TO '${hd_database}'@'localhost';"
+        mysql -uroot -p${MYSQL_SECRET} -e "FLUSH PRIVILEGES;"
+        done
