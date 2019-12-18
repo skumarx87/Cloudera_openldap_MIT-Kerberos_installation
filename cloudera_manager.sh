@@ -28,4 +28,4 @@ systemctl enable mysqld
 mysql -e "UPDATE mysql.user SET Password = PASSWORD('${MYSQL_SECRET}') WHERE User = 'root'"
 mysql -e "DROP USER ''@'localhost'"
 mysql -e "DROP USER ''@'$(hostname)'"
-mysql -e "FLUSH PRIVILEGES
+mysql -e "FLUSH PRIVILEGES"
