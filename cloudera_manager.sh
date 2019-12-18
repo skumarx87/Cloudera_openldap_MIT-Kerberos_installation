@@ -39,3 +39,18 @@ for hd_database in ${Hadoop_databases}
         mysql -uroot -p${MYSQL_SECRET} -e "GRANT ALL PRIVILEGES ON ${hd_database}.* TO '${hd_database}'@'localhost';"
         mysql -uroot -p${MYSQL_SECRET} -e "FLUSH PRIVILEGES;"
         done
+banner_msg "Mysql JDBC driver installation"
+
+curl -L -o mysql-connector-java-5.1.46.tar.gz https://dev.mysql.com/get/Downloads/Connector-J/mysql-connector-java-5.1.46.tar.gz
+tar zxvf mysql-connector-java-5.1.46.tar.gz
+mkdir -p /usr/share/java/
+cd mysql-connector-java-5.1.46
+cp -v mysql-connector-java-5.1.46-bin.jar /usr/share/java/mysql-connector-java.jar
+
+banner_msg "SCM database preparing"
+
+/opt/cloudera/cm/schema/scm_prepare_database.sh mysql scm scm scm
+
+banner_msg "Starting cloudera manager"
+
+systemctl start cloudera-scm-server
