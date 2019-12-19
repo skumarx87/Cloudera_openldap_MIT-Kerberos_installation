@@ -54,3 +54,4 @@ banner_msg "SCM database preparing"
 banner_msg "Starting cloudera manager"
 
 systemctl start cloudera-scm-server
+systemctl enable cloudera-scm-server
