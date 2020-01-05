@@ -22,7 +22,12 @@ banner_msg "Cloudera Manager Agent installation"
 
 wget ${CLOUDERA_REPO_URL} -P /etc/yum.repos.d/
 rpm --import https://archive.cloudera.com/cm6/6.3.1/redhat7/yum/RPM-GPG-KEY-cloudera
-yum -y install oracle-j2sdk1.8
+
+banner_msg "Installing Java 1.8 and JCE policy files"
+yum -y install oracle-j2sdk1.8 unzip
+cd /var/tmp/startup_dir/openldap_MIT-Kerberos_installation
+unzip jce_policy-8.zip -d /usr/java/jdk1.8.0_181-cloudera/jre/lib/security
+cp -r /usr/java/jdk1.8.0_181-cloudera/jre/lib/security/UnlimitedJCEPolicyJDK8/{local_policy.jar,US_export_policy.jar} /usr/java/jdk1.8.0_181-cloudera/jre/lib/security/
 
 yum -y install cloudera-manager-agent
 
