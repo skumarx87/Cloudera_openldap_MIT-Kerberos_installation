@@ -13,8 +13,11 @@ openldap_secreat="support123"
 ldap_olcSuffix=dc="${ldap_root_dc},dc=com"
 ldap_olcRootDN="cn=admin,dc=${ldap_root_dc},dc=com"
 
+node_list=
 root_ca_password="support123"
 pem_key_password="support123"
+jks_key_password="support123"
+p12_key_password="support123"
 kerberos_server_hostname="idm.tanu.com"
 ldap_server_host="idm.tanu.com"
 
@@ -26,6 +29,37 @@ ldap_user_test_passwd="test123"
 
 #client_hostname="client1.tanu.com"
 
+}
+
+create_host_certificates() {
+yum install -y zip unzip
+
+banner_msg "INFO: Running SSL certificate creation function for all hosts"
+for node_name in $(echo ${node_list}|sed "s/,/ /g")
+        do
+        CERT_LOCATION="/var/www/html/node_certs/${node_name}"
+        mkdir -p ${CERT_LOCATION}/{pem,jks,p12}
+        export PATH=$PATH:"/usr/java/jdk1.8.0_181-cloudera/bin"
+
+        keytool -genkey -alias ${node_name} -keyalg RSA -keystore ${CERT_LOCATION}/jks/keystore.jks -keypass ${jks_key_password} -storepass ${jks_key_password} -keysize 2048 -dname "CN=${node_name},OU=IT,O=IT,L=NYC,S=NY,C=US"
+        keytool -certreq -alias ${node_name} -keystore ${CERT_LOCATION}/jks/keystore.jks -keypass ${jks_key_password} -storepass ${jks_key_password} -file ${CERT_LOCATION}/jks/cert.csr
+        openssl x509 -req -in ${CERT_LOCATION}/jks/cert.csr -CA ca_root_key/MyRootCA.pem -CAkey ca_root_key/MyRootCA.key -CAcreateserial -out ${CERT_LOCATION}/jks/cert.pem -days 5000  -sha256 -passin pass:${root_ca_password}
+        keytool -importcert -trustcacerts -keystore ${CERT_LOCATION}/jks/keystore.jks -keypass ${jks_key_password} -storepass ${jks_key_password} -alias MyRootCA.pem -file ca_root_key/MyRootCA.pem -noprompt
+        keytool -importcert -trustcacerts -keystore ${CERT_LOCATION}/jks/keystore.jks -keypass ${jks_key_password} -storepass ${jks_key_password} -alias ${node_name} -file ${CERT_LOCATION}/jks/cert.pem -noprompt
+        keytool -importcert -keystore ${CERT_LOCATION}/jks/truststore.jks -keypass ${jks_key_password} -storepass ${jks_key_password} -alias MyRootCA -file ca_root_key/MyRootCA.pem -noprompt
+
+
+        keytool -importkeystore -srckeystore ${CERT_LOCATION}/jks/keystore.jks -destkeystore ${CERT_LOCATION}/p12/cert.p12 -srcalias ${node_name} -srcstoretype jks -deststoretype pkcs12 -srcstorepass  ${jks_key_password} -deststorepass ${p12_key_password}
+
+
+        openssl pkcs12 -clcerts -nokeys -out ${CERT_LOCATION}/pem/cert.pem -in ${CERT_LOCATION}/p12/cert.p12 -password pass:${p12_key_password}
+        openssl pkcs12 -nocerts -out ${CERT_LOCATION}/pem/cert.key_tmp -in ${CERT_LOCATION}/p12/cert.p12 -password pass:${p12_key_password} -passout pass:${pem_key_password}
+        openssl rsa -in ${CERT_LOCATION}/pem/cert.key_tmp -out ${CERT_LOCATION}/pem/cert.key -passin  pass:${pem_key_password}
+
+
+        cd /var/www/html/node_certs
+        zip -r ${node_name}.zip ${node_name}
+        done
 }
 
 server_presetup() {
@@ -545,7 +579,9 @@ case "$1" in
 	setup_webserver)
 		setup_webserver_gcp_ca_expose
 		;;
-		
+        create_host_certificates)
+                create_host_certificates
+                ;;
 	*)
 		echo $"Usage: $0 {server_setup|client_setup|create_hadoop_users|setup_webserver}"
 		exit 2
