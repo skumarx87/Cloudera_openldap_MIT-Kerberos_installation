@@ -41,6 +41,11 @@ cp -v mysql-connector-java-5.1.46-bin.jar /usr/share/java/mysql-connector-java.j
 
 sed -i "/#cloudera_mysql_connector_jar/s/^#//g" /etc/cloudera-scm-agent/config.ini
 sed -i "s/\(server_host=\).*\$/\1${CM_HOST}/" /etc/cloudera-scm-agent/config.ini
+hostname=$(hostname -f)
+mkdir -p /opt/cloudera/certs/
+curl -o ${hostname}.zip http://${CM_HOST}/node_certs/${hostname}.zip
+unzip ${hostname}.zip
+cp -r ${hostname}/* /opt/cloudera/certs/
 
 systemctl enable cloudera-scm-agent
 systemctl start cloudera-scm-agent
