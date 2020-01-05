@@ -56,9 +56,10 @@ for node_name in $(echo ${node_list}|sed "s/,/ /g")
         openssl pkcs12 -nocerts -out ${CERT_LOCATION}/pem/cert.key_tmp -in ${CERT_LOCATION}/p12/cert.p12 -password pass:${p12_key_password} -passout pass:${pem_key_password}
         openssl rsa -in ${CERT_LOCATION}/pem/cert.key_tmp -out ${CERT_LOCATION}/pem/cert.key -passin  pass:${pem_key_password}
 
-
+        OLD_PWD=$(pwd)
         cd /var/www/html/node_certs
         zip -r ${node_name}.zip ${node_name}
+        cd $OLD_PWD
         done
 }
 
