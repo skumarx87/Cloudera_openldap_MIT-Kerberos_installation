@@ -64,3 +64,4 @@ systemctl enable cloudera-scm-server
 ##For testing
 mkdir -p /data/dfs/snn
 mkdir -p /data/dfs/dn
+mkdir -p /data/dfs/nn
