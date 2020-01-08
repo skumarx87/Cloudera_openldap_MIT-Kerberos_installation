@@ -53,3 +53,4 @@ systemctl start cloudera-scm-agent
 ##For testing
 mkdir -p /data/dfs/snn
 mkdir -p /data/dfs/dn
+mkdir -p /data/dfs/nn
