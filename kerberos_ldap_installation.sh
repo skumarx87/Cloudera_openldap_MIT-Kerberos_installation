@@ -426,6 +426,7 @@ check_file_exists "/etc/krb5.d/service.keyfile" "ERROR: ldap stash file creation
 banner_msg "INFO: Creating kadmin.keytab. otherwise admin service won't start"
 kadmin.local -q "ktadd -k /var/kerberos/krb5kdc/kadmin.keytab kadmin/admin kadmin/${kerberos_server_hostnam} kadmin/${kerberos_server_hostnam} kadmin/changepw"
 kadmin.local -q "addprinc -pw ${KDC_ADMIN_PASSWD} root/admin@${KRB_DOMAIN_NAME}"
+kadmin.local -q "addprinc -pw ${KDC_ADMIN_PASSWD} cloudera-scm/admin@${KRB_DOMAIN_NAME}"
 check_file_exists "/var/kerberos/krb5kdc/kadmin.keytab" "ERROR: kadmin.keytab file creation failed in var/kerberos/krb5kdc/kadmin.keytab location"
 
 echo -e "\n Starting KDC services"
