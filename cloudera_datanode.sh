@@ -49,3 +49,7 @@ cp -r ${hostname}/* /opt/cloudera/certs/
 
 systemctl enable cloudera-scm-agent
 systemctl start cloudera-scm-agent
+
+##For testing
+mkdir -p /data/dfs/snn
+mkdir -p /data/dfs/dn
