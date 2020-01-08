@@ -60,3 +60,7 @@ banner_msg "Starting cloudera manager"
 
 systemctl start cloudera-scm-server
 systemctl enable cloudera-scm-server
+
+##For testing
+mkdir -p /data/dfs/snn
+mkdir -p /data/dfs/dn
