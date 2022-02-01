@@ -18,12 +18,12 @@ root_ca_password="support123"
 pem_key_password="support123"
 jks_key_password="support123"
 p12_key_password="support123"
-kerberos_server_hostname="idm.tanu.com"
-ldap_server_host="idm.tanu.com"
+kerberos_server_hostname="laksha.tanu.com"
+ldap_server_host="laksha.tanu.com"
 
 ldap_user_profile_ou="ou=People,dc=${ldap_root_dc},dc=com"
 ldap_group_profile_ou="ou=Groups,dc=${ldap_root_dc},dc=com"
-ldap_user_test="user5"
+ldap_user_test="hadoop"
 hadoop_users_password="support123"
 ldap_user_test_passwd="test123"
 
@@ -442,7 +442,7 @@ settingup_ldapclient_authentication() {
 CLIENT_FQDN_HOST=$(hostname -f)
 
 yum install -y openldap-clients nss-pam-ldapd net-tools krb5-workstation
-authconfig --enableldap --enableldapauth --ldapserver=ldaps://${ldap_server_host} --ldapbasedn="${ldap_user_profile_ou}" --enablemkhomedir --update
+authconfig --enableldap --enableldapauth --ldapserver=ldaps://${ldap_server_host} --ldapbasedn="${ldap_olcSuffix}" --enablemkhomedir --update
 
 ldap_user_test_passwd_encty=$(slappasswd -s ${ldap_user_test_passwd})
 
@@ -584,6 +584,10 @@ case "$1" in
         create_host_certificates)
                 create_host_certificates
                 ;;
+        setup_ssh_kerberos)
+		setting_kerberos_ldap_client
+		settingup_ldapclient_authentication
+		;;	
 	*)
 		echo $"Usage: $0 {server_setup|client_setup|create_hadoop_users|setup_webserver}"
 		exit 2
@@ -600,6 +604,6 @@ esac
 #enable_kerberos_ldap_backend
 #creating_kerberos_db
 #client_presetup
-#setting_kerberos_ldap_client
-#settingup_ldapclient_authentication
+setting_kerberos_ldap_client
+settingup_ldapclient_authentication
 #create_krb5_conf
