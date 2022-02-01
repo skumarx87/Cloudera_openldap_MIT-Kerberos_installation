@@ -202,6 +202,11 @@ EOF
 
 sed -i "s/DOMAIN.COM/${DOMAIN_UPPER}/"g /var/kerberos/krb5kdc/kadm5.acl
 
+systemctl start krb5kdc.service
+systemctl start kadmin.service
+systemctl enable krb5kdc.service
+systemctl enable kadmin.service
+
 }
 
 create_root_ca_pair(){
