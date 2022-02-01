@@ -604,6 +604,6 @@ esac
 #enable_kerberos_ldap_backend
 #creating_kerberos_db
 #client_presetup
-setting_kerberos_ldap_client
-settingup_ldapclient_authentication
+#setting_kerberos_ldap_client
+#settingup_ldapclient_authentication
 #create_krb5_conf
