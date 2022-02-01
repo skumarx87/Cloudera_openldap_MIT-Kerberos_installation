@@ -533,6 +533,7 @@ echo "SOCKETDIR=/var/run/saslauthd" >>/etc/sysconfig/saslauthd
 echo "MECH=kerberos5" >>/etc/sysconfig/saslauthd
 echo "KRB5_KTNAME=/etc/krb5.keytab" >>/etc/sysconfig/saslauthd
 systemctl restart saslauthd.service
+systemctl enable saslauthd.service
 
 }
 
